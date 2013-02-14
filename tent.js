@@ -128,6 +128,7 @@ var tentAPI = (function(){
 			}
 		}
 		var profile = tentGET(profileURL).body;
+		if(typeof profile["https://tent.io/types/info/core/v0.1.0"] === 'undefined') return null;
 		return new entity(profile);
 	};
 
@@ -136,7 +137,6 @@ var tentAPI = (function(){
 		for(var param in parameterlist){
 			parameters += parameterlist[param]? (parameters? "&" : "?") + param + "=" + parameterlist[param] : "";
 		}
-		console.log(parameters);
 		return parameters;
 	};
 
@@ -155,7 +155,7 @@ var tentAPI = (function(){
 	var tentGET = function(URL, parameters){
 		URL = URL + composeParameters(parameters);
 		headers = composeHeaders(["Accept", "Authorization"]);
-		relevantResponseHeaders = ["status", "Link"];
+		relevantResponseHeaders = ["statuscode", "status", "Link"];
 		response = http("GET", URL, headers, undefined, relevantResponseHeaders)
 		if(response){
 			response.body = JSON.parse(response.body);
@@ -168,7 +168,7 @@ var tentAPI = (function(){
 	var tentPOST = function(URL, content){
 		var body = JSON.stringify(content);
 		headers = composeHeaders(["Accept", "Content-Type", "Authorization"]);
-		relevantResponseHeaders = ["status", "ETag"];
+		relevantResponseHeaders = ["statuscode", "status", "ETag"];
 		response = http("POST", URL, headers, body, relevantResponseHeaders);
 		return response;
 	};
@@ -176,13 +176,13 @@ var tentAPI = (function(){
 	var tentPUT = function(URL, content){
 		var body = JSON.stringify(content);
 		headers = composeHeaders(["Accept", "Content-Type", "Authorization"]);
-		relevantResponseHeaders = ["status", "ETag"];
+		relevantResponseHeaders = ["statuscode", "status", "ETag"];
 		response = http("PUT", URL, headers, body, relevantResponseHeaders);
 	};
 
 	var tentDELETE = function(URL){
 		headers = composeHeaders(["Accept", "Authorization"]);
-		relevantResponseHeaders = ["status"];
+		relevantResponseHeaders = ["statuscode", "status"];
 		response = http("DELETE", URL, headers, undefined, relevantResponseHeaders);
 	};
 
@@ -241,7 +241,7 @@ var tentAPI = (function(){
 			/* end debug */
 			request.open(method, URL, false);
 			for(header in headers){
-				request.setRequestHeader(header, headers[header]);
+				if(headers[header]) request.setRequestHeader(header, headers[header]);
 			}
 			if(isContentAllowed(method, body)){
 				request.send(body);
@@ -264,10 +264,14 @@ var tentAPI = (function(){
 			} else if (typeof relevantResponseHeaders === "object" && relevantResponseHeaders != null){
 				for(var i = 0; i < relevantResponseHeaders.length; i++){
 					var name = relevantResponseHeaders[i];
-					header = request.getResponseHeader(name)
-					if(header != null){
-						responseHeaders[name] = header;
-					}
+					if(name == "statuscode"){
+						responseHeaders[name] = request.status;
+					} else {
+						header = request.getResponseHeader(name)
+						if(header != null){
+							responseHeaders[name] = header;
+						}
+					}	
 				}
 			}
 			return {headers: responseHeaders,body: request.responseText};

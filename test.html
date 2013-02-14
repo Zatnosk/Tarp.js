@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Tent.js tests</title>
+	<script src="https://raw.github.com/olado/doT/master/doT.min.js"></script>
+	<script src="tent.js"></script>
+	<script src="tests.js"></script>
+	<style>
+	.test {
+		border: 1px black solid;
+		padding: 2px 6px;
+		margin: 0px 0px 4px 0px;
+		display: inline-block;
+	}
+	.fail {
+		background: #FF8888;
+	}
+	.success {
+		background: #88FF88;
+	}
+	.error {
+		background: #888888;
+	}
+	.testrun {
+		float: left;
+	}
+	</style>
+</head>
+<body>
+	<h1>Tent.js tests</h1>
+	<div id="testspace"></div>
+	<script>
+	function runtests(context){
+		var testtmpl = doT.template('<span class="test {{=it.result}}">{{=it.text}}</span>')
+		var testrun = document.createElement('ul')
+		testrun.className = "testrun"
+		document.getElementById('testspace').appendChild(testrun)
+		var t = new tests(context)
+		for(var name in t){
+			if(typeof t[name] === 'function'){
+				var code = t[name]()
+				var result = code == 1 ? "success" : code == 0 ? "fail" : "error"
+				var li = document.createElement('li')
+				var data = {"result": result,
+							"text": (doT.template(t[name].text)(context))}
+				li.innerHTML = testtmpl(data)
+				testrun.appendChild(li)
+			}
+		}
+	}
+	runtests({"entityURL": "https://zatnosk.tent.is"})
+	/*
+	runtests({"entityURL": "https://tent.tent.is"})
+	runtests({"entityURL": "https://cat.tent.is"})
+	runtests({"entityURL": "https://jeena.net"})
+	/**/
+	</script>
+</body>
+</html>
