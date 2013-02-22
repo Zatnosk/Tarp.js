@@ -1,7 +1,7 @@
 var DEBUG = false;
 var tentAPI = (function(){
 	var APPDATA = {
-		//TODO: implement authorization
+		//TODO: implement Authorization
 		"Authorization": undefined,
 		"Accept": "application/vnd.tent.v0+json",
 		"Content-Type": "application/vnd.tent.v0+json"
@@ -132,10 +132,10 @@ var tentAPI = (function(){
 		return new entity(profile);
 	};
 
-	var composeParameters = function(parameterlist){
+	var composeParameters = function(parameterList){
 		var parameters = "";
-		for(var param in parameterlist){
-			parameters += parameterlist[param]? (parameters? "&" : "?") + param + "=" + parameterlist[param] : "";
+		for(var param in parameterList){
+			parameters += parameterList[param]? (parameters? "&" : "?") + param + "=" + parameterList[param] : "";
 		}
 		return parameters;
 	};
@@ -170,7 +170,12 @@ var tentAPI = (function(){
 		headers = composeHeaders(["Accept", "Content-Type", "Authorization"]);
 		relevantResponseHeaders = ["statuscode", "status", "ETag"];
 		response = http("POST", URL, headers, body, relevantResponseHeaders);
-		return response;
+		if(response){
+			response.body = JSON.parse(response.body);
+			return response;
+		} else {
+			return null;
+		}
 	};
 
 	var tentPUT = function(URL, content){
@@ -178,12 +183,24 @@ var tentAPI = (function(){
 		headers = composeHeaders(["Accept", "Content-Type", "Authorization"]);
 		relevantResponseHeaders = ["statuscode", "status", "ETag"];
 		response = http("PUT", URL, headers, body, relevantResponseHeaders);
+		if(response){
+			response.body = JSON.parse(response.body);
+			return response;
+		} else {
+			return null;
+		}
 	};
 
 	var tentDELETE = function(URL){
 		headers = composeHeaders(["Accept", "Authorization"]);
 		relevantResponseHeaders = ["statuscode", "status"];
 		response = http("DELETE", URL, headers, undefined, relevantResponseHeaders);
+		if(response){
+			response.body = JSON.parse(response.body);
+			return response;
+		} else {
+			return null;
+		}
 	};
 
 	var http = (function(){
@@ -274,11 +291,17 @@ var tentAPI = (function(){
 					}	
 				}
 			}
+			console.log('response:',request.responseText)
 			return {headers: responseHeaders,body: request.responseText};
 		};
 	}());
 
+	var parseAuthData = function(authData){
+		APPDATA.Authorization = undefined;
+	}
+
 	return {
-		getEntity: discoverydance
-	};
-}());
+		"getEntity": discoverydance,
+
+	}
+}())
