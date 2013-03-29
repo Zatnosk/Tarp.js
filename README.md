@@ -1,6 +1,10 @@
 tentjs
 ======
 A JavaScript client library for the Tent protocol.
+###Tent v0.3
+Considering that v0.3 of the Tent protocol is likely to be rolled out, before I get authorization working, there will be no updates before everything is refactored to run with v0.3
+
+Work is still being done, but I probably wont upload any until it is reasonable "stable", i.e. able to post and read statuses on v0.3.
 
 ###Interface
 tent.js creates a global object named *tentAPI*. It has a single function, which takes the URL of a Tent entity:
