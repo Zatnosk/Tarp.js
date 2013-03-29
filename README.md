@@ -1,6 +1,6 @@
 tentjs
 ======
-A JavaScript client library for the Tent protocol.
+A JavaScript client library for the Tent protocol. Not finished and not yet usable.
 ###Tent v0.3
 Considering that v0.3 of the Tent protocol is likely to be rolled out, before I get authorization working, there will be no updates before everything is refactored to run with v0.3
 
