@@ -19,7 +19,7 @@ tests.prototype.getFollowings = function(){
 	}
 	this.context.followings = entity.getFollowings()
 	console.log("Followings:", this.context.followings)
-	return this.context.followings && this.context.followings.headers.statuscode == 200 ? true : false
+	return this.context.followings && this.context.followings.headers.Status == "200 OK" ? true : false
 }
 tests.prototype.getFollowingsId = function(){
 	this.getFollowingsId.text = "<i>tentAPI.getFollowingsId</i>"
@@ -37,7 +37,7 @@ tests.prototype.getFollowingsId = function(){
 	}
 	var following = entity.getFollowingsId(id)
 	console.log("Following (id):", following)
-	return following && following.headers.statuscode == 200 ? true : false
+	return following && following.headers.Status == "200 OK" ? true : false
 }
 tests.prototype.getFollowingsEntity = function(){
 	this.getFollowingsEntity.text = "<i>tentAPI.getFollowingsEntity</i>"
@@ -55,7 +55,7 @@ tests.prototype.getFollowingsEntity = function(){
 	}
 	var following = entity.getFollowingsEntity(following_entity)
 	console.log("Following (entity):", following)
-	return following && following.headers.statuscode == 200 ? true : false
+	return following && following.headers.Status == "200 OK" ? true : false
 }
 tests.prototype.getFollowers = function(){
 	this.getFollowers.text = "<i>tentAPI.getFollowers</i>"
@@ -67,7 +67,7 @@ tests.prototype.getFollowers = function(){
 	}
 	this.context.followers = entity.getFollowers()
 	console.log("Followers:", this.context.followers)
-	return this.context.followers && this.context.followers.headers.statuscode == 200 ? true : false
+	return this.context.followers && this.context.followers.headers.Status == "200 OK" ? true : false
 }
 tests.prototype.getFollowersId = function(){
 	this.getFollowersId.text = "<i>tentAPI.getFollowersId</i>"
@@ -85,7 +85,7 @@ tests.prototype.getFollowersId = function(){
 	}
 	var follower = entity.getFollowersId(id)
 	console.log("Follower (id):", follower)
-	return follower && follower.headers.statuscode == 200 ? true : false
+	return follower && follower.headers.Status == "200 OK" ? true : false
 }
 tests.prototype.getFollowersEntity = function(){
 	this.getFollowersEntity.text = "<i>tentAPI.getFollowersEntity</i>"
@@ -103,5 +103,16 @@ tests.prototype.getFollowersEntity = function(){
 	}
 	var follower = entity.getFollowersEntity(follower_entity)
 	console.log("Follower (entity):", follower)
-	return follower && follower.headers.statuscode == 200 ? true : false
+	return follower && follower.headers.Status == "200 OK" ? true : false
+}
+tests.prototype.getPosts = function(){
+	this.getPosts.text = "<i>tentAPI.getPosts</i>"
+	var entity = this.context.entity
+	if(!entity.getPosts || typeof entity.getPosts !== 'function'){
+		console.log(".getPosts() does not exist");
+		return false;
+	}
+	this.context.posts = entity.getPosts()
+	console.log("Posts:", this.context.posts)
+	return this.context.posts && this.context.posts.headers.Status == "200 OK" ? true : false
 }

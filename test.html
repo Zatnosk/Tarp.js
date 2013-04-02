@@ -3,8 +3,14 @@
 <head>
 	<title>Tent.js tests</title>
 	<script src="https://raw.github.com/olado/doT/master/doT.min.js"></script>
+	<script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/hmac-sha1.js"></script>
+	<script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/hmac-sha256.js"></script>
+	<script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
+	<script src="http_mock.js"></script>
+	<script src="http.js"></script>
 	<script src="tent.js"></script>
 	<script src="tests.js"></script>
+	<script src="data.js"></script>
 	<style>
 	.test {
 		border: 1px black solid;
@@ -30,6 +36,29 @@
 	<h1>Tent.js tests</h1>
 	<div id="testspace"></div>
 	<script>
+	if(typeof doT == "undefined"){
+		var doT = {}
+		var descend = function(obj, tabs){
+			var s = ""
+			if(!tabs) tabs = ""
+				for(i in obj){
+					if(typeof obj[i] == "object"){
+						s += tabs+"{"+descend(obj[i],tabs+".\t")+"!\n"+tabs+"}"
+					} else {
+						s += tabs+obj[i]+"!\n"
+					}
+				}
+				return s
+		}
+		doT.template = function (t){
+			return function(context){
+				if(context.result){
+					return '<span class="test '+context.result+'">'+context.text+'</span>'
+				}
+				return t
+			}
+		}
+	}
 	function runtests(context){
 		var testtmpl = doT.template('<span class="test {{=it.result}}">{{=it.text}}</span>')
 		var testrun = document.createElement('ul')
@@ -54,6 +83,48 @@
 	runtests({"entityURL": "https://cat.tent.is"})
 	runtests({"entityURL": "https://jeena.net"})
 	/**/
+	function timestamp(){
+		return Math.round((new Date()).getTime() / 1000)
+	}
+	function statuspost(text){
+		var status = {"permissions": {"public": true},
+						"type": "https://tent.io/types/post/status/v0.1.0",
+						"published_at": timestamp(),
+						"content": {
+							"text": text
+						},
+						"app": {
+							"name": "tent.js",
+							"url": "https://github.com/Zatnosk/tentjs"
+						}
+					}
+		return status
+	}
+	var firstpost = statuspost("First post from tent.js ever!")
+	var auth = {"id":"u:1c424f34","key":"4f9344fad0494d6cdc310a0fc32f0406","algorithm":"hmac-sha-256"}
+	http = http_
+	var ent = tentAPI.getEntity("https://zatnosk.tent.is")
+	http = http_mock
+	var tokenauth = {
+		"id":conf_appdata.mac_key_id,
+		"key":conf_appdata.mac_key,
+		"algorithm": conf_appdata.mac_algorithm
+	}
+	console.log(tokenauth)
+	var tokenreq = {
+		"method": "POST",
+		"URL": ent.APIroot+"/apps/"+conf_appdata.id+"/authorizations",
+		"headers": {
+			"Accept": "application/vnd.tent.v0+json",
+			"Content-Type": "application/vnd.tent.v0+json"
+		},
+		"body": '{"code": '+conf_appdata.code+',"token_type": "mac"}'
+	}
+	var signedtokenreq = tentAPI.sign(tokenreq, tokenauth)
+	ent.postPosts(firstpost)
+	var req = tentAPI.sign(http_request, auth)
+	http = http_
+	//http(req)
 	</script>
 </body>
 </html>
