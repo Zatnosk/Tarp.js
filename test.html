@@ -101,7 +101,7 @@
 		return status
 	}
 	var firstpost = statuspost("First post from tent.js ever!")
-	var auth = {"id":"u:1c424f34","key":"4f9344fad0494d6cdc310a0fc32f0406","algorithm":"hmac-sha-256"}
+	var auth = {"id":conf_appdata2.access_token,"key": conf_appdata2.mac_key,"algorithm":"hmac-sha-256"}
 	http = http_
 	var ent = tentAPI.getEntity("https://zatnosk.tent.is")
 	http = http_mock
@@ -118,7 +118,7 @@
 			"Accept": "application/vnd.tent.v0+json",
 			"Content-Type": "application/vnd.tent.v0+json"
 		},
-		"body": '{"code": '+conf_appdata.code+',"token_type": "mac"}'
+		"body": '{"code": "'+conf_appdata.code+'","token_type": "mac"}'
 	}
 	var signedtokenreq = tentAPI.sign(tokenreq, tokenauth)
 	ent.postPosts(firstpost)
