@@ -21,7 +21,6 @@ var http_ = function(request){
 		if(typeof request.headers[header] == "function"){
 			request.headers[header] = headers[header]
 		}
-		console.log(header, request.headers[header])
 		xhr.setRequestHeader(header, request.headers[header])
 	}
 	if(request.body){
