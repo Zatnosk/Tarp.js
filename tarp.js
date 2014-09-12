@@ -1,171 +1,356 @@
-var Tarp = (function(){
-	var TARP = function(app_data){
-		var redirecting_id = sessionStorage.getItem('tarp_js_redirecting_id')
-		if(redirecting_id){
-			var code = getURLparams().code
-			var session = new Session(redirecting_id)
-			var credentials = auth_landing(session, code)
-			session.credentials = credentials
-			sessionStorage.setItem(storage_prefix(session)+'credentials', JSON.stringify(credentials))
+var Hattop = function Hattop(){
+	// BEGIN HELPER FUNCTIONS
+	var parseHeaders = function(headerString){
+		var headers = headerString.split("\x0A")
+		var headerObj = {}
+		for(i in headers){
+			var colon = headers[i].indexOf(':')
+			var key = headers[i].substring(0,colon).trim()
+			var value = headers[i].substring(colon+1).trim()
+			headerObj[key] = value
 		}
-		sessionStorage.removeItem('tarp_js_redirecting_id')
+		return headerObj;
+	}
+	// END HELPER FUNCTIONS
 
-		storage.app_data = app_data
-		var active_sessions = JSON.parse(sessionStorage.getItem('tarp_js_active_sessions'))
-		var sessions = []
-		for(var i in active_sessions){
-			var id = active_sessions[i]
-			if(storage.sessions[id] && storage.sessions[id].self){
-				var s = storage.sessions[id].self
-			} else {
-				var s = new Session(id)
-			}
-			sessions.push(s)
-		}
-		if(sessions.length == 0){
-			sessions.push(new Session())
-		}
-		return sessions
-	}
-
-	TARP.print = function(){
-		function log(prefix,name){
-			console.log(name+':',sessionStorage.getItem(prefix+name))
-		}
-		console.log('storage:', storage)
-		console.log('redirecting_id:',sessionStorage.getItem('tarp_js_redirecting_id'))
-		for(var i in storage.sessions){
-			var prefix = storage_prefix(storage.sessions[i].self)
-			console.log('prefix', prefix)
-			log(prefix, 'entity')
-			log(prefix, 'server_endpoints')
-			log(prefix, 'credentials')
-			log(prefix, 'client_id')
-			log(prefix, 'state')
-			log(prefix, 'credential_post_id')
-			log(prefix, 'app_hawk_key')
-		}
-	}
-
-	var plumbing = {
-		'discovery': undefined,
-		'http': HTTPSend
-	}
-	TARP.plumbing = plumbing
-	//TODO: Refactor error handling to throw errors as early as possible, and catch and recover when possible.
-	/*** BEGIN INTERNAL HELPERS ***/
-	function storage_prefix(session){
-		return 'tarp_js_'+session.id+'_'
-	}
-	function HTTPSend(request){
-		//TODO: implement async http
-		var parseHeaders = function(headerString){
-			var headers = headerString.split("\x0A")
-			var headerObj = {}
-			for(i in headers){
-				var colon = headers[i].indexOf(':')
-				var key = headers[i].substring(0,colon).trim()
-				var value = headers[i].substring(colon+1).trim()
-				headerObj[key] = value
-			}
-			return headerObj;
-		}
-		var xhr = new XMLHttpRequest()
-		xhr.open(request.method, request.URL, false)
-		//xhr.withCredentials = true;
-		if(request.headers){
-			for(header in request.headers){
-				xhr.setRequestHeader(header, request.headers[header])
-			}
-		}
-		if(request.body){
-			xhr.send(request.body)
-		} else {
-			xhr.send()
-		}
-		if(xhr.readyState != 4){
-			console.error("error: response not recieved")
-			return {"error": "response not received"}
-		}
-		return {"headers": parseHeaders(xhr.getAllResponseHeaders()),
-				"body": xhr.responseText,
-				"error": null}
-	}
-
-	function HTTPRequest(method, URL, headers, body){
+	function HTTPRequest(method, uri, headers, body){
 		this.method = method
-		this.URL = URL
+		this.uri = uri
 		this.headers = headers
 		this.body = body
 	}
 
-	function getURLparams(){
-		var data = window.location.href.match(/[?&]([^=&]*)=([^&]*)/g)
-		var params = {}
-		if(data){
-			for(var i in data){
-				var pair = data[i].match(/[?&]([^=]*)=(.*)/)
-				params[pair[1]] = pair[2]
-			}
-		}
-		return params
-	}
-	/*** END INTERNAL HELPERS ***/
-	/*** BEGIN TENT PROTOCOL FUNCTIONS ***/
-	function auth_redirect(session, reg, creds){
-		//Persist needed data in session storage
-		var prefix = storage_prefix(session)
-		//generate and persist state
-		var state = Math.random().toString(36).substr(2)
-		sessionStorage.setItem(prefix+'state', state)
-		//persist app registration post id
-		sessionStorage.setItem(prefix+'client_id', reg.id)
-		//persist credentials post id
-		sessionStorage.setItem(prefix+'credential_post_id', creds.id)
-		//persist hawk key from credentials post
-		sessionStorage.setItem(prefix+'app_hawk_key', creds.content.hawk_key)
-		//persist server endpoints
-		sessionStorage.setItem(prefix+'server_endpoints', JSON.stringify(session.endpoints))
-		sessionStorage.setItem('tarp_js_redirecting_id', session.id)
-		return session.endpoints.oauth_auth+'?client_id='+reg.id+'&state='+state
-	}
-
-	function auth_landing(session, code){
-		var prefix = storage_prefix(session)
-		var client_id = sessionStorage.getItem(prefix+'client_id')
-		var cred_id = sessionStorage.getItem(prefix+'credential_post_id')
-		var hawk_key = sessionStorage.getItem(prefix+'app_hawk_key')
-		var headers = {
-			'Accept': 'application/json',
-			'Content-Type': 'application/json'
-		}
-		var request = new HTTPRequest(
-			'POST',
-			session.endpoints.oauth_token,
-			headers,
-			JSON.stringify({
-				'code': code,
-				'token_type': 'https://tent.io/oauth/hawk-token'
-			})
-		)
-		request.headers.Authorization = hawk.client.header(session.endpoints.oauth_token, 'POST', {'credentials':{
-				'id': cred_id,
-				'key': hawk_key,
+	HTTPRequest.prototype.hawk = function(id, key, client_id){
+		options = {
+			'credentials': {
+				'id': id,
+				'key': key,
 				'algorithm': 'sha256'
 			},
 			'app': client_id,
-			'payload': request.body,
-			'contentType': 'application/json'
-		}).field
-		var response = HTTPSend(request)
-		if(response.error){throw new Error('Authorization error: '+response.error)}
-		var credentials = JSON.parse(response.body)
-		return credentials
+		}
+		if(this.body){
+			options.payload = this.body
+			options.contentType = this.headers['Content-Type']
+		}
+		hawkheader = hawk.client.header(this.uri, this.method, options)
+		this.headers.Authorization = hawkheader.field
 	}
 
-	function registerApp(post_endpoint, app_info){
-		//postEndpoint must be the new_post endpoint from the meta post.
-		//app_info must be a json object with information about the app satifying the App Registration Schema
+	HTTPRequest.prototype.send = function(){
+		var req = this
+		return new Promise(function(resolve, reject){
+			var xhr = new XMLHttpRequest()
+			xhr.open(req.method, req.uri, true)
+			if(req.headers){
+				for(header in req.headers){
+					xhr.setRequestHeader(header, req.headers[header])
+				}
+			}
+
+			xhr.onload = function(){
+				if(xhr.status == 200){
+					var response = {
+						"headers": parseHeaders(xhr.getAllResponseHeaders()),
+						"body": xhr.responseText
+					}
+					resolve(response)
+				} else {
+					console.log(xhr)
+					reject(Error(xhr.statusText+' \nURI: '+req.uri))
+				}
+			}
+
+			xhr.onerror = function(){
+				reject(Error('Network Error'))
+			}
+
+			console.log(req.uri, xhr)
+			if(req.body){
+				xhr.send(req.body)
+			} else {
+				xhr.send()
+			}
+		})
+	}
+
+	return {
+		'createRequest': function(method, uri, headers, body){
+			return new HTTPRequest(method, uri, headers, body)
+		}
+	}
+}()
+
+function Tarp(app_data){
+	function Server(entity){
+		this.entity = entity
+		/*
+		NOTE: It might be a security hole to allow access to the entity data this way
+		I don't know if it is a plausible attact vector
+		*/
+		//this.entity.uri = entity_uri
+	}
+
+	var data = {
+		'app_data': app_data,
+		'servers': {}
+	}
+
+	function init(){
+		data.app_data = app_data
+		load()
+		catch_redirect()
+		/*
+		Note to self: START HERE!!
+		Test the get-functions
+		Implement attachment support
+		Decide on error handling
+		*/
+		var tarp = {
+			'get_server': get_server,
+			'dump': function(){console.log('dump:',data);return data},
+			'store': store
+		}
+		return tarp
+	}
+
+	Server.prototype.posts_feed = function posts_feed(parameters){
+		var entity_uri = this.entity.uri
+		var posts_feed_endpoint = this.entity.endpoints.posts_feed
+		return new Promise(function(resolve, reject){
+			if(!isEntityConnected(entity_uri)) reject(Error('"'+entity_uri+'" is not connected.'))
+			var request = Hattop.createRequest(
+				'GET',
+				posts_feed_endpoint,
+				{'Accept': 'application/vnd.tent.post.v0+json'}
+			)
+			var paramstring = ''
+			for(var key in parameters){
+				paramstring += '&' + key + '=' + parameters[key]
+			}
+			request.uri += paramstring.replace(/&/, '?')
+			resolve(sign_and_send(entity_uri, request))
+		}).then(function(response){
+			return JSON.parse(response.body)
+		})
+	}
+
+	Server.prototype.new_post = function new_post(content){
+		var request = Hattop.createRequest(
+			'POST',
+			this.entity.endpoints.new_post,
+			{'Content-Type': 'application/vnd.tent.post.v0+json; type="'+content.type+'"'},
+			JSON.stringify(content)
+		)
+		return sign_and_send(this.entity.uri, request)
+	}
+
+	Server.prototype.get_post = function get_post(content, parameters){
+		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post.v0+json')
+	}
+
+	Server.prototype.get_post_mentions = function get_post_mentions(content, parameters){
+		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post-mentions.v0+json')
+	}
+
+	Server.prototype.get_post_versions = function get_post_versions(content, parameters){
+		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post-versions.v0+json')
+	}
+
+	Server.prototype.get_post_children = function get_post_children(content, parameters){
+		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post-children.v0+json')
+	}
+
+	Server.prototype.put_post = function put_post(content){
+		return post(this.entity.uri, content, 'put')
+	}
+
+	Server.prototype.delete_post = function delete_post(content){
+		return post(this.entity.uri, content, 'delete')
+	}
+
+	function post(entity, content, method, parameters, accept){
+		return new Promise(function(resolve, reject){
+			if(!isEntityConnected(entity)) reject(Error('Entity is not connected'))
+			if(!content.id) reject(Error('Post id is missing'))
+			var endpoint = data.servers[entity].entity.endpoints.post
+			var endpoint = endpoint.replace(/{entity}/, encodeURIComponent(content.entity)).replace(/{post}/, content.id)
+			if(method == 'get'){
+				var request = Hattop.createRequest(
+					'GET',
+					endpoint,
+					{'Accept': accept},
+					JSON.stringify(content)
+				)
+				if(parameters){
+					var paramstring = ''
+					for(var key in parameters){
+						paramstring += '&' + key + '=' + parameters[key]
+					}
+					request.uri += paramstring.replace(/&/, '?')
+				}
+			}
+			if(method == 'put'){
+				var request = Hattop.createRequest(
+					'PUT',
+					endpoint,
+					{'Content-Type': 'application/vnd.tent.post.v0+json; type="'+content.type+'"'},
+					JSON.stringify(content)
+				)
+			} else if(method == 'delete'){
+				var request = Hattop.createRequest(
+					'DELETE',
+					endpoint,
+					{}
+				)
+			}
+			resolve(sign_and_send(entity, request))
+		})
+	}
+
+	function sign_and_send(entity, request){
+		return new Promise(function(resolve, reject){
+			if(!isEntityConnected(entity)) reject(Error('Entity is not connected'))
+			request.hawk(
+				data.servers[entity].entity.credentials.access_token,
+				data.servers[entity].entity.credentials.hawk_key,
+				data.servers[entity].entity.client_id
+			)
+			resolve(request.send())
+		})
+	}
+
+	function get_server(entity_uri){
+		if(data.servers[entity_uri]){
+			return data.servers[entity_uri]
+		} else {
+			connect(entity_uri)
+		}
+	}
+
+	function connect(entity_uri){
+		//Check if entity is a valid url
+		//TODO: Consistent error handling
+		var entity = {'uri': entity_uri}
+		return new Promise(function(resolve, reject){
+			if(!(/^https?:\/\/[^?#]+$/).test(entity_uri))
+				reject(Error('Invalid entity'))
+			resolve()
+		}).then(function(){
+			console.log('Q: is entity known')
+			//Check if entity is known
+			//If not, register
+			if(!isEntityKnown(entity_uri)){
+				console.log('A: no')
+				return getMetaPost(entity_uri).then(function(meta){
+					console.log(meta)
+					//TODO: Check whether a valid meta-post is returned
+					//TODO: Allow for other servers than the first listed to be used
+					entity.endpoints = meta.post.content.servers[0].urls
+					var post_endpoint = entity.endpoints.new_post
+					return registration(post_endpoint, data.app_data).then(function(reg_data){
+						console.log('reg_data', reg_data)
+						entity.client_id = reg_data.registration.post.id
+						entity.access_token_credentials = {
+							'id': reg_data.credentials.post.id,
+							'hawk_key': reg_data.credentials.post.content.hawk_key
+						}
+					})
+				})	
+			}
+		}).then(function(){
+			data.servers[entity_uri] = new Server(entity)
+			console.log('redirect', entity_uri, entity, data.servers[entity_uri])
+			//Redirect
+			authorization_request(
+				entity_uri,
+				entity.endpoints.oauth_auth,
+				entity.client_id,
+				Math.random().toString(36).substr(2)
+			)
+		})
+	}
+
+	function load(){
+		//load connected entities
+		var entities = sessionStorage.getItem('tarp_entities')
+		if(entities){
+			entities = JSON.parse(entities)
+			for(var i in entities){
+				data.servers[i] = new Server(entities[i])
+			}
+		}
+		console.log('load:', data)
+	}
+
+	function store(){
+		//store connected entities
+		//entities shouldn't be accidentally overwritten, as all entities are loaded at init()
+		var entities = {}
+		for(var i in data.servers){
+			entities[i] = data.servers[i].entity
+		}
+		console.log('store:', entities)
+		sessionStorage.setItem('tarp_entities', JSON.stringify(entities))
+	}
+
+	function catch_redirect(){
+		var re_array = window.location.href.match(/[?&]state=([^&]*)/i)
+		if(!re_array) return null
+		var observed_state = re_array[1]
+		var expected_state = sessionStorage.getItem('tarp_redirect_state')
+		if(expected_state != observed_state) return null
+		var entity = sessionStorage.getItem('tarp_redirect_entity')
+		sessionStorage.removeItem('tarp_redirect_entity')
+		sessionStorage.removeItem('tarp_redirect_state')
+		var oauth_code = (window.location.href.match(/[?&]code=([^&]*)/i))[1]
+		access_token_request(
+			data.servers[entity].entity.endpoints.oauth_token,
+			oauth_code,
+			data.servers[entity].entity.access_token_credentials.id,
+			data.servers[entity].entity.access_token_credentials.hawk_key,
+			data.servers[entity].entity.client_id
+		).then(function(credentials){
+			data.servers[entity].entity.credentials = credentials
+			store()
+		})
+	}	
+
+	function isEntityConnected(entity){
+		return data.servers[entity]
+			&& data.servers[entity].entity
+			&& data.servers[entity].entity.credentials
+			&& data.servers[entity].entity.credentials.access_token
+			&& data.servers[entity].entity.credentials.hawk_key
+			&& data.servers[entity].entity.client_id
+			&& data.servers[entity].entity.endpoints
+			&& data.servers[entity].entity.access_token_credentials
+	}
+
+	function isEntityKnown(entity){
+		//TODO: Implement a hook for checking for known entities against a database/service.
+		return data.servers[entity]
+			&& data.servers[entity].entity
+			&& data.servers[entity].entity.client_id
+			&& data.servers[entity].entity.endpoints
+			&& data.servers[entity].entity.access_token_credentials
+	}
+
+	function getMetaPost(entity){
+		return Hattop.createRequest(
+			'GET',
+			//TODO: Implement the discovery link as a hook
+			'http://tarp.zatnosk.dk/discover.php?entity='+entity,
+			{'Accept': 'application/vnd.tent.post.v0+json'}
+		).send().then(function(post){
+			return JSON.parse(post.body)
+		})
+		//TODO: Verify that the meta post is sane
+	}
+
+	function registration(post_endpoint, app_data){
+		//Returns app_post + Link header to app credentials
+		//Returns app_credentials
 		var result = {
 			'registration': null,
 			'credentials': null,
@@ -176,150 +361,59 @@ var Tarp = (function(){
 		}
 		var registrationBody = JSON.stringify({
 			'type': 'https://tent.io/types/app/v0#',
-			'content': app_info,
+			'content': app_data,
 			'permissions': {'public': false }
 		})
-		var registration = HTTPSend(
-			new HTTPRequest(
-				'POST',
-				post_endpoint,
-				registrationHeaders,
-				registrationBody
-			)
-		)
-		if(registration.error){
-			result.error = 'Registration: '+registration.error
-			return result
-		}
-		result.registration = JSON.parse(registration.body)
-		var linkRE = /<(.*?)>; rel="https:\/\/tent.io\/rels\/credentials"/
-		var link = registration.headers.Link.match(linkRE)[1]
-		var credentials = HTTPSend(
-			new HTTPRequest(
+		return Hattop.createRequest(
+			'POST',
+			post_endpoint,
+			registrationHeaders,
+			registrationBody
+		).send().then(function(registration){
+			var linkRE = /<(.*?)>; rel="https:\/\/tent.io\/rels\/credentials"/
+			var link = registration.headers.Link.match(linkRE)[1]
+			return Hattop.createRequest(
 				'GET',
 				link,
 				{'Accept': 'application/vnd.tent.post.v0+json'}
+			).send().then(function(credentials){
+				return {
+					'credentials': JSON.parse(credentials.body),
+					'registration': JSON.parse(registration.body)
+				}
+			})
+		})
+	}
+
+	function authorization_request(entity, oauth_endpoint, client_id, state){
+		//Redirects to the tent server for authorization
+		//TODO: Make sure everything is stored properly
+		store()
+		sessionStorage.setItem('tarp_redirect_state', state)
+		sessionStorage.setItem('tarp_redirect_entity', entity)
+		window.location = oauth_endpoint+'?client_id='+client_id+'&state='+state
+	}
+
+	function access_token_request(oauth_token_endpoint, code, cred_id, hawk_key, client_id){
+		//returns a promise of credentials
+		return new Promise(function(resolve, reject){
+			var headers = {
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			}
+			var request = Hattop.createRequest(
+				'POST',
+				oauth_token_endpoint,
+				headers,
+				JSON.stringify({
+					'code': code,
+					'token_type': 'https://tent.io/oauth/hawk-token'
+				})
 			)
-		)
-		if(credentials.error){
-			result.error = 'Credentials: '+credentials.error
-		} else {
-			result.credentials = JSON.parse(credentials.body)
-		}
-		return result
-	}
-	/*** END TENT PROTOCOL FUNCTIONS ***/
-	/*** BEGIN VERIFICATION HELPERS ***/
-	function verify_meta(meta){
-		return (meta
-		&& meta.post
-		&& meta.post.content
-		&& meta.post.content.servers
-		&& meta.post.content.servers[0].urls)
-	}
-	function verify_app_data(app_data){
-		return true
-	}
-	/*** END VERIFICATION HELPERS ***/
-	/*** BEGIN CLASS-LIKE OBJECTS ***/
-	function Session(id){
-		/* Attributes:
-			.id
-			.entity
-			.endpoints
-		*/
-		if(!id){
-			this.id = Math.random().toString(36).substr(2)
-			storage.active_sessions.push(this.id)
-			sessionStorage.setItem('tarp_js_active_sessions', JSON.stringify(storage.active_sessions))
-			
-		} else {
-			this.id = id
-			//load persisted data
-			this.entity = sessionStorage.getItem(storage_prefix(this)+'entity')
-			this.endpoints = JSON.parse(sessionStorage.getItem(storage_prefix(this)+'server_endpoints'))
-			this.credentials = JSON.parse(sessionStorage.getItem(storage_prefix(this)+'credentials'))
-		}
-		storage.sessions[this.id] = {'self': this}
+			request.hawk(cred_id,hawk_key,client_id)
+			resolve(request.send().then(function(response){return JSON.parse(response.body)}))
+		})
 	}
 
-	Session.prototype.register = function(entity){
-		this.entity = entity
-		sessionStorage.setItem('tarp_js_'+this.id+'_entity', entity)
-		//TODO: should try the rest of the server list if first server fails
-		var server_index = 0 //constant
-
-		var app_data = storage.app_data
-		if(!verify_app_data(app_data)){throw new Error('Invalid app data, could not continue registration')}
-		var meta_page = HTTPSend(new HTTPRequest(
-			'GET',
-			plumbing.discovery(entity),
-			{'Accept': 'application/vnd.tent.post.v0+json'}
-		))
-		var meta = JSON.parse(meta_page.body)
-		if(!verify_meta(meta)){throw new Error('Invalid meta post, could not continue registration')}
-		this.endpoints = meta.post.content.servers[server_index].urls
-		var result = registerApp(this.endpoints.new_post, app_data)
-		var redirect = auth_redirect(this, result.registration.post, result.credentials.post)
-		window.location = redirect
-	}
-
-	Session.prototype.feed = function(parameters, head){
-		var request = new HTTPRequest(
-			'GET',
-			this.endpoints.posts_feed,
-			{'Accept': 'application/vnd.tent.post.v0+json'}
-		)
-		if(head){request.method = 'HEAD'}
-		var options = {
-			'credentials':{
-				'id': this.credentials.access_token,
-				'key': this.credentials.hawk_key,
-				'algorithm': 'sha256'
-			},
-			'app': sessionStorage.getItem(storage_prefix(this)+'client_id')
-		}
-		
-		var paramstring = ''
-		for(var key in parameters){
-			paramstring += '&' + key + '=' + parameters[key]
-		}
-		request.URL += paramstring.replace(/&/, '?')
-		request.headers.Authorization = hawk.client.header(request.URL, request.method, options).field
-		var response = HTTPSend(request)
-		if(response.error){return response}
-		if(head){return response.headers.Count}
-		return JSON.parse(response.body)
-	}
-
-	Session.prototype.new_post = function(content){
-		var request = new HTTPRequest(
-			'POST',
-			this.endpoints.new_post,
-			{'Content-Type': 'application/vnd.tent.post.v0+json; type="'+content.type+'"'},
-			JSON.stringify(content)
-		)
-		var options = {
-			'credentials':{
-				'id': this.credentials.access_token,
-				'key': this.credentials.hawk_key,
-				'algorithm': 'sha256'
-			},
-			'app': sessionStorage.getItem(storage_prefix(this)+'client_id'),
-			'payload': request.body,
-			'contentType': 'application/vnd.tent.post.v0+json'
-		}
-		request.headers.Authorization = hawk.client.header(this.endpoints.new_post, 'POST', options).field
-		console.log(request)
-		HTTPSend(request)
-	}
-	/*** END CLASS-LIKE OBJECTS ***/
-
-	var storage = {
-		'app_data': {},
-		'active_sessions': [],
-		'sessions': {}
-	}
-
-	return TARP
-})()
+	return init()
+}
