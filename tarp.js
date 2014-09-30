@@ -93,13 +93,21 @@ function Tarp(app_data){
 
 	var data = {
 		'app_data': app_data,
-		'servers': {}
+		'servers': {},
+		'active_entity': null
+	}
+
+	var action_queue = new Promise(function(resolve,reject){resolve()})
+
+	function queue(obj){
+		action_queue = action_queue.then(function(){return obj})
+		return action_queue
 	}
 
 	function init(){
 		data.app_data = app_data
-		load()
-		catch_redirect()
+		queue(load())
+		queue(catch_redirect())
 		/*
 		Note to self: START HERE!!
 		Test the get-functions
@@ -108,6 +116,7 @@ function Tarp(app_data){
 		*/
 		var tarp = {
 			'get_server': get_server,
+			'get_active_entity': get_active_entity,
 			'dump': function(){console.log('dump:',data);return data},
 			'store': store
 		}
@@ -222,10 +231,14 @@ function Tarp(app_data){
 
 	function get_server(entity_uri){
 		if(data.servers[entity_uri]){
-			return data.servers[entity_uri]
+			return queue(data.servers[entity_uri])
 		} else {
-			connect(entity_uri)
+			return queue(connect(entity_uri))
 		}
+	}
+
+	function get_active_entity(){
+		return queue(data.active_entity)
 	}
 
 	function connect(entity_uri){
@@ -280,6 +293,7 @@ function Tarp(app_data){
 				data.servers[i] = new Server(entities[i])
 			}
 		}
+		data.active_entity = sessionStorage.getItem('tarp_active_entity')
 		console.log('load:', data)
 	}
 
@@ -292,6 +306,9 @@ function Tarp(app_data){
 		}
 		console.log('store:', entities)
 		sessionStorage.setItem('tarp_entities', JSON.stringify(entities))
+		if(typeof data.active_entity == "string"){
+			sessionStorage.setItem('tarp_active_entity', data.active_entity)
+		}
 	}
 
 	function catch_redirect(){
@@ -303,6 +320,7 @@ function Tarp(app_data){
 		var entity = sessionStorage.getItem('tarp_redirect_entity')
 		sessionStorage.removeItem('tarp_redirect_entity')
 		sessionStorage.removeItem('tarp_redirect_state')
+		data.active_entity = entity
 		var oauth_code = (window.location.href.match(/[?&]code=([^&]*)/i))[1]
 		access_token_request(
 			data.servers[entity].entity.endpoints.oauth_token,
