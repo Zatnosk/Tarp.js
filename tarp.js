@@ -218,7 +218,7 @@ function Tarp(app_data){
 	}
 
 	function sign_and_send(entity, request){
-		return new Promise(function(resolve, reject){
+		var action = new Promise(function(resolve, reject){
 			if(!isEntityConnected(entity)) reject(Error('Entity is not connected'))
 			request.hawk(
 				data.servers[entity].entity.credentials.access_token,
@@ -227,6 +227,11 @@ function Tarp(app_data){
 			)
 			resolve(request.send())
 		})
+		if(!isEntityConnected(entity)){
+			queue(action, "sign_and_send :231")
+		} else {
+			return action
+		}
 	}
 
 	function get_server(entity_uri){
@@ -322,7 +327,7 @@ function Tarp(app_data){
 		sessionStorage.removeItem('tarp_redirect_state')
 		data.active_entity = entity
 		var oauth_code = (window.location.href.match(/[?&]code=([^&]*)/i))[1]
-		access_token_request(
+		return access_token_request(
 			data.servers[entity].entity.endpoints.oauth_token,
 			oauth_code,
 			data.servers[entity].entity.access_token_credentials.id,
