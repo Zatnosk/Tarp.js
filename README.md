@@ -1,5 +1,5 @@
 Tarp.js
-======
+=======
 Tarp.js is a fully clientside JavaScript library for the Tent protocol implementing v0.3. It is currently in alpha stage. For help with this library contact ^zatnosk.cupcake.is via Tent status posts.
 
 Tarp.js uses promises. It also depends on hawk.js (supplied in this repo).
@@ -33,3 +33,29 @@ API
 `server.put_post(content)` :: A valid edited post -> ...
 
 `server.delete_post(content)` :: A valid existing post -> ...
+
+Tarp as a Module
+----------------
+Tarp can be used as a module in Node, CommonJS implementations, or AMD implementations.
+
+### Including in a Node app
+To include Tarp in a Node app, use
+
+```JavaScript
+var tarp require('./path/to/tarp.js'); //Initialize; .js not required
+
+server = tarp.get_server(https:\/\/example.cupcake.is);
+...
+```
+
+
+### Including in a CommonJS app
+
+To include Tarp in a CommonJS app, use
+
+```JavaScript
+var tarp require('./path/to/tarp.js'); //Initialize; .js not required
+
+server = tarp.get_server(https:\/\/example.cupcake.is);
+...
+```
