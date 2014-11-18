@@ -1,5 +1,30 @@
-var Hattop = function Hattop(){
-	// BEGIN HELPER FUNCTIONS
+(function (root, tarp){
+	/*
+	 * Build system support inspired by:
+	 * http://ifandelse.com/its-not-hard-making-your-library-support-amd-and-commonjs/
+	 */
+	if(typeof define === 'function' && define.amd){
+		// AMD API detected
+		define('tarp', ['hawk'], function(hawk){return {'Tarp': tarp(hawk)}})
+	} else if(typeof module === 'object' && module.exports){
+		// Looks like node.js variant of CommonJS
+		var hawk = require('hawk')
+		module.exports.Tarp = tarp(hawk)
+	} else if(typeof exports === 'object' && exports){
+		// Looks like CommonJS
+		var hawk = require('hawk')
+		exports.Tarp = tarp(hawk)
+	} else if(root.hawk){
+		root.Tarp = tarp(root.hawk)
+	} else {
+		console.error('ERROR: Tarp is not available; could not find dependency: [Hawk](https://github.com/hueniverse/hawk).')
+	}
+}(this, function(hawk){
+/*
+ * Hattop is a small module for HTTP requests
+ * used by Tarp and therefore included here.
+ */
+var Hattop = (function Hattop(){
 	var parseHeaders = function(headerString){
 		var headers = headerString.split("\x0A")
 		var headerObj = {}
@@ -11,7 +36,6 @@ var Hattop = function Hattop(){
 		}
 		return headerObj;
 	}
-	// END HELPER FUNCTIONS
 
 	function HTTPRequest(method, uri, headers, body){
 		this.method = method
@@ -21,7 +45,7 @@ var Hattop = function Hattop(){
 	}
 
 	HTTPRequest.prototype.hawk = function(id, key, client_id){
-		options = {
+		var options = {
 			'credentials': {
 				'id': id,
 				'key': key,
@@ -33,7 +57,7 @@ var Hattop = function Hattop(){
 			options.payload = this.body
 			options.contentType = this.headers['Content-Type']
 		}
-		hawkheader = hawk.client.header(this.uri, this.method, options)
+		var hawkheader = hawk.client.header(this.uri, this.method, options)
 		this.headers.Authorization = hawkheader.field
 	}
 
@@ -79,7 +103,7 @@ var Hattop = function Hattop(){
 			return new HTTPRequest(method, uri, headers, body)
 		}
 	}
-}()
+})()
 
 function Tarp(app_data){
 	function Server(entity){
@@ -440,3 +464,5 @@ function Tarp(app_data){
 
 	return init()
 }
+return Tarp
+}))
