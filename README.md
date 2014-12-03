@@ -42,7 +42,7 @@ Tarp can be used as a module in Node, CommonJS implementations, or AMD implement
 To include Tarp in a Node app, use
 
 ```JavaScript
-var tarp require('./path/to/tarp.js'); //Initialize; .js not required
+var tarp = require('./path/to/tarp.js'); //Initialize; .js not required
 
 server = tarp.get_server(https:\/\/example.cupcake.is);
 ...
@@ -54,7 +54,7 @@ server = tarp.get_server(https:\/\/example.cupcake.is);
 To include Tarp in a CommonJS app, use
 
 ```JavaScript
-var tarp require('./path/to/tarp.js'); //Initialize; .js not required
+var tarp = require('./path/to/tarp.js'); //Initialize; .js not required
 
 server = tarp.get_server(https:\/\/example.cupcake.is);
 ...
