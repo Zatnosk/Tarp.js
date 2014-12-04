@@ -16,7 +16,7 @@
         "protocol",
         "library"
     ],
-    "author": "Jonas Ernstesen <your.email@site.tld",
+    "author": "Jonas Ernstesen <your.email@site.tld>",
     'contributors': [{
         'name': '&! (bitandbang)',
         'email': 'bitnb@subvertising.org'
