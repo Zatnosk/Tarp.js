@@ -16,10 +16,10 @@
         "protocol",
         "library"
     ],
-    "author": "Jonas Ernstesen <your.email@site.tld>",
-    'contributors': [{
-        'name': '&! (bitandbang)',
-        'email': 'bitnb@subvertising.org'
+    "author": "Jonas Ramsdal Ernstsen <dev@zatnosk.dk>",
+    "contributors": [{
+        "name": "&! (bitandbang)",
+        "email": "bitnb@subvertising.org"
     }],
     "license": "MIT",
     "bugs": {
