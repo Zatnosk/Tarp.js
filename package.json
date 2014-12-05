@@ -1,0 +1,29 @@
+{
+    "name": "Tarp.js",
+    "version": "0.0.3",
+    "description": "Tarp.js is a JavaScript library for the Tent protocol.",
+    "main": "tarp.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Zatnosk/Tarp.js.git"
+    },
+    "keywords": [
+        "tarp",
+        "tent",
+        "protocol",
+        "library"
+    ],
+    "author": "Jonas Ernstesen <your.email@site.tld>",
+    'contributors': [{
+        'name': '&! (bitandbang)',
+        'email': 'bitnb@subvertising.org'
+    }],
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/Zatnosk/Tarp.js/issues"
+    },
+    "homepage": "https://github.com/Zatnosk/Tarp.js"
+}
