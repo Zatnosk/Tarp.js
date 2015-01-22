@@ -141,6 +141,7 @@ function Tarp(app_data){
 		var tarp = {
 			'get_server': get_server,
 			'get_active_entity': get_active_entity,
+			'get_known_entities': get_known_entities,
 			'dump': function(){console.log('dump:',data);return data},
 			'store': store
 		}
@@ -259,7 +260,7 @@ function Tarp(app_data){
 	}
 
 	function get_server(entity_uri){
-		if(data.servers[entity_uri]){
+		if(isEntityConnected(entity_uri)){
 			return queue(data.servers[entity_uri])
 		} else {
 			return queue(connect(entity_uri))
@@ -270,21 +271,28 @@ function Tarp(app_data){
 		return queue(data.active_entity)
 	}
 
+	function get_known_entities(){
+		return Object.keys(data.servers)
+	}
+
 	function connect(entity_uri){
 		//Check if entity is a valid url
 		//TODO: Consistent error handling
-		var entity = {'uri': entity_uri}
 		return new Promise(function(resolve, reject){
 			if(!(/^https?:\/\/[^?#]+$/).test(entity_uri))
 				reject(Error('Invalid entity'))
 			resolve()
 		}).then(function(){
-			console.log('Q: is entity known')
+			console.log('Q: is entity known?')
 			//Check if entity is known
 			//If not, register
-			if(!isEntityKnown(entity_uri)){
+			if(isEntityKnown(entity_uri)){
+				console.log('A: yes')
+				return data.servers[entity_uri].entity
+			} else {
 				console.log('A: no')
 				return getMetaPost(entity_uri).then(function(meta){
+					var entity = {'uri': entity_uri}
 					console.log(meta)
 					//TODO: Check whether a valid meta-post is returned
 					//TODO: Allow for other servers than the first listed to be used
@@ -297,12 +305,13 @@ function Tarp(app_data){
 							'id': reg_data.credentials.post.id,
 							'hawk_key': reg_data.credentials.post.content.hawk_key
 						}
+						rememberEntity(entity)
+						data.servers[entity_uri] = new Server(entity)
+						return entity
 					})
 				})	
 			}
-		}).then(function(){
-			data.servers[entity_uri] = new Server(entity)
-			console.log('redirect', entity_uri, entity, data.servers[entity_uri])
+		}).then(function(entity){
 			//Redirect
 			authorization_request(
 				entity_uri,
@@ -314,13 +323,17 @@ function Tarp(app_data){
 	}
 
 	function load(){
+		//load remembered entities
+		var entities = JSON.parse(localStorage.getItem('tarp_remembered_entities')) || {}
 		//load connected entities
-		var entities = sessionStorage.getItem('tarp_entities')
-		if(entities){
-			entities = JSON.parse(entities)
-			for(var i in entities){
-				data.servers[i] = new Server(entities[i])
-			}
+		var sessionEntities = JSON.parse(sessionStorage.getItem('tarp_entities')) || {}
+		console.log("session entities:", sessionEntities)
+		for(var i in sessionEntities){
+			entities[i] = sessionEntities[i]
+		}
+		for(var i in entities){
+			console.log("entity:", i, entities[i])
+			data.servers[i] = new Server(entities[i])
 		}
 		data.active_entity = sessionStorage.getItem('tarp_active_entity')
 		console.log('load:', data)
@@ -338,6 +351,18 @@ function Tarp(app_data){
 		if(typeof data.active_entity == "string"){
 			sessionStorage.setItem('tarp_active_entity', data.active_entity)
 		}
+	}
+
+	function rememberEntity(entity){
+		entities = JSON.parse(localStorage.getItem('tarp_remembered_entities')) || {}
+		entities[entity.uri] = entity
+		localStorage.setItem('tarp_remembered_entities', JSON.stringify(entities))
+	}
+
+	function forgetEntity(entity_uri){
+		entities = JSON.parse(localStorage.getItem('tarp_remembered_entities')) || {}
+		delete(entities[entity_uri])
+		localStorage.setItem('tarp_remembered_entities', JSON.stringify(entities))
 	}
 
 	function catch_redirect(){
