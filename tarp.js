@@ -195,12 +195,29 @@ function Tarp(app_data){
 		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post-children.v0+json')
 	}
 
+	Server.prototype.get_profile_picture = function (hash){
+		
+	}
+
 	Server.prototype.put_post = function put_post(content){
 		return post(this.entity.uri, content, 'put')
 	}
 
 	Server.prototype.delete_post = function delete_post(content){
 		return post(this.entity.uri, content, 'delete')
+	}
+
+	Server.prototype.get_avatar_uri = function get_avatar_uri(){
+		console.log("att", this, this.entity.attachments)
+		if(this.entity.attachments){
+			for(var i in this.entity.attachments){
+				if(this.entity.attachments[i].category == "avatar"){
+					var endpoint = this.entity.endpoints.attachment
+					return endpoint.replace(/{entity}/, encodeURIComponent(this.entity.uri))
+					               .replace(/{digest}/, this.entity.attachments[i].digest)
+				}
+			}
+		}
 	}
 
 	function post(entity, content, method, parameters, accept){
@@ -297,6 +314,7 @@ function Tarp(app_data){
 					//TODO: Check whether a valid meta-post is returned
 					//TODO: Allow for other servers than the first listed to be used
 					entity.endpoints = meta.post.content.servers[0].urls
+					entity.attachments = meta.post.attachments
 					var post_endpoint = entity.endpoints.new_post
 					return registration(post_endpoint, data.app_data).then(function(reg_data){
 						console.log('reg_data', reg_data)
