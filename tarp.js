@@ -179,6 +179,16 @@ function Tarp(app_data){
 		return sign_and_send(this.entity.uri, request)
 	}
 
+	Server.prototype.post_attachment = function post_attachment(content, file){
+		var request = Hattop.createRequest(
+			'POST',
+			this.entity.endpoints.new_post,
+			{'Content-Type': 'application/vnd.tent.post.v0+json; type="'+content.type+'"'},
+			JSON.stringify(content)
+		)
+		return sign_and_send(this.entity.uri, request)
+	}
+
 	Server.prototype.get_post = function get_post(content, parameters){
 		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post.v0+json')
 	}
@@ -193,10 +203,6 @@ function Tarp(app_data){
 
 	Server.prototype.get_post_children = function get_post_children(content, parameters){
 		return post(this.entity.uri, content, 'get', parameters, 'application/vnd.tent.post-children.v0+json')
-	}
-
-	Server.prototype.get_profile_picture = function (hash){
-		
 	}
 
 	Server.prototype.put_post = function put_post(content){
